@@ -1,0 +1,2 @@
+export function Metric({label,value,delta,critical}:{label:string,value:string,delta?:string,critical?:boolean}){return <div className={'metric card '+(critical?'critical':'')}><span>{label}</span><strong>{value}</strong>{delta&&<small>{delta}</small>}<div className="spark">▂▃▅▂▆▇▅█</div></div>}
+export function SectionTitle({kicker,title,action}:{kicker?:string,title:string,action?:string}){return <div className="section-title"><div>{kicker&&<span className="eyebrow">{kicker}</span>}<h2>{title}</h2></div>{action&&<button className="ghost">{action}</button>}</div>}

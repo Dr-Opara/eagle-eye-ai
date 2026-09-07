@@ -1,0 +1,3 @@
+'use client'
+import {useState} from 'react'
+export function Copilot(){const [open,setOpen]=useState(false);return <><button className="copilot-fab" onClick={()=>setOpen(!open)}>◎ EAGLEEYE AI</button>{open&&<aside className="copilot card"><div className="panel-head"><div><span className="eyebrow">DEMO AI</span><h3>EagleEye Copilot</h3></div><button className="x" onClick={()=>setOpen(false)}>×</button></div><p>Global activity is elevated in this demo. The highest modeled ransomware concentration is in Europe and Asia.</p><div className="ai-box"><b>Ask:</b> “Why does this matter to my environment?”</div><input placeholder="Ask EagleEye anything…"/></aside>}</>}
