@@ -1,3 +1,60 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';type Layer='ransomware'|'malware'|'ddos'|'phishing'|'botnet'|'exploit'|'warfare'|'outage';const layers:Layer[]=['ransomware','malware','ddos','phishing','botnet','exploit','warfare','outage'];const points=[{x:18,y:35,l:'ransomware',n:'North America',s:'critical'},{x:29,y:28,l:'phishing',n:'Atlantic',s:'high'},{x:49,y:24,l:'warfare',n:'Europe',s:'critical'},{x:57,y:31,l:'exploit',n:'Eastern Europe',s:'high'},{x:68,y:39,l:'botnet',n:'South Asia',s:'elevated'},{x:78,y:31,l:'malware',n:'East Asia',s:'high'},{x:82,y:65,l:'ransomware',n:'Australia',s:'elevated'},{x:45,y:57,l:'ddos',n:'West Africa',s:'high'},{x:55,y:49,l:'outage',n:'Middle East',s:'elevated'},{x:25,y:63,l:'ransomware',n:'South America',s:'high'}] as const;const arcs=[[18,35,49,24],[49,24,78,31],[57,31,55,49],[25,63,18,35],[68,39,82,65],[45,57,55,49]];
-export default function CommandMap({compact=false}:{compact?:boolean}){const[active,setActive]=useState<Layer[]>(['ransomware','warfare','exploit']);const[window,setWindow]=useState('24H');const[pulse,setPulse]=useState(0);useEffect(()=>{const id=setInterval(()=>setPulse(x=>(x+1)%100),1600);return()=>clearInterval(id)},[]);const visible=useMemo(()=>points.filter(p=>active.includes(p.l as Layer)),[active]);function toggle(l:Layer){setActive(a=>a.includes(l)?a.filter(x=>x!==l):[...a,l])}return <section className={`command-map ${compact?'compact':''}`}><div className="map-toolbar"><div><span className="live-dot"/> LIVE GLOBAL CYBER ACTIVITY <span className="demo-flag">PUBLIC INTEL + DEMO TELEMETRY</span></div><div className="time-control">{['1H','6H','24H','7D'].map(t=><button className={window===t?'active':''} onClick={()=>setWindow(t)} key={t}>{t}</button>)}</div></div>{!compact&&<div className="layer-bar">{layers.map(l=><button key={l} className={active.includes(l)?'on':''} onClick={()=>toggle(l)}>{l}</button>)}</div>}<div className="map-stage"><svg viewBox="0 0 1000 520" preserveAspectRatio="none" aria-label="Stylized global cyber intelligence map"><defs><radialGradient id="ocean"><stop offset="0" stopColor="#0a2545"/><stop offset="1" stopColor="#030b18"/></radialGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="1000" height="520" fill="url(#ocean)"/><g className="gridlines">{[100,200,300,400,500,600,700,800,900].map(x=><line key={'x'+x} x1={x} y1="0" x2={x} y2="520"/>)}{[80,160,240,320,400,480].map(y=><line key={'y'+y} x1="0" y1={y} x2="1000" y2={y}/>)}</g><path className="continent" d="M84 143l64-42 99 18 61 55-27 50-71 18-40 72-70-26-36-62zM282 334l71-9 44 65-29 115-54-32-30-76zM410 112l88-43 92 31 39 49-68 33-38 71-85-20-51-61zM539 256l70-16 58 91-33 138-76-35-42-112zM608 112l104-33 143 32 70 75-55 75-113-12-61 64-89-62-49-70zM772 355l100-9 60 64-58 72-98-18-37-62z"/>{arcs.map((a,i)=><path key={i} className="attack-arc" style={{animationDelay:`${i*.3}s`}} d={`M${a[0]*10} ${a[1]*5.2} Q${(a[0]+a[2])*5} ${Math.min(a[1],a[3])*4} ${a[2]*10} ${a[3]*5.2}`}/>)}{visible.map(p=><g key={p.n} transform={`translate(${p.x*10} ${p.y*5.2})`} filter="url(#glow)"><circle r={12+(pulse%3)} className={`node-halo ${p.s}`}/><circle r="4" className={`node-core ${p.s}`}/><text x="12" y="-8" className="map-label">{p.n}</text><text x="12" y="8" className="map-sub">{p.l.toUpperCase()}</text></g>)}</svg><div className="map-legend"><span><i className="critical"/>Confirmed/high confidence</span><span><i className="high"/>Active intelligence</span><span><i className="elevated"/>Watch</span></div><div className="map-counter"><strong>{visible.length*13+47}</strong><span>signals in {window}</span><small>{active.length} layers enabled</small></div></div></section>}
+import {useEffect,useMemo,useState} from 'react';
+import {geoEqualEarth,geoPath} from 'd3-geo';
+import {feature} from 'topojson-client';
+import world from 'world-atlas/countries-110m.json';
+
+type Layer='ransomware'|'malware'|'ddos'|'phishing'|'botnet'|'exploit'|'warfare'|'outage';
+type EventPoint={lat:number;lon:number;layer:Layer;name:string;severity:'critical'|'high'|'elevated';count:number};
+const layers:Layer[]=['ransomware','malware','ddos','phishing','botnet','exploit','warfare','outage'];
+const palette:Record<Layer,string>={ransomware:'#ff4f67',malware:'#ff8d4d',ddos:'#58a8ff',phishing:'#c76cff',botnet:'#4ee6d2',exploit:'#ffd65a',warfare:'#ff3aa8',outage:'#9aa8b5'};
+const events:EventPoint[]=[
+ {lat:38,lon:-97,layer:'ransomware',name:'United States',severity:'critical',count:184},
+ {lat:51,lon:10,layer:'malware',name:'Germany',severity:'high',count:132},
+ {lat:55,lon:-3,layer:'phishing',name:'United Kingdom',severity:'high',count:121},
+ {lat:49,lon:32,layer:'warfare',name:'Ukraine',severity:'critical',count:97},
+ {lat:39,lon:35,layer:'exploit',name:'Türkiye',severity:'high',count:83},
+ {lat:21,lon:78,layer:'botnet',name:'India',severity:'elevated',count:151},
+ {lat:36,lon:138,layer:'malware',name:'Japan',severity:'high',count:88},
+ {lat:35,lon:104,layer:'ddos',name:'China',severity:'high',count:143},
+ {lat:1.35,lon:103.8,layer:'exploit',name:'Singapore',severity:'elevated',count:61},
+ {lat:-10,lon:-55,layer:'ransomware',name:'Brazil',severity:'high',count:79},
+ {lat:-30,lon:25,layer:'ddos',name:'South Africa',severity:'elevated',count:58},
+ {lat:-25,lon:133,layer:'ransomware',name:'Australia',severity:'elevated',count:49},
+ {lat:24,lon:54,layer:'outage',name:'United Arab Emirates',severity:'elevated',count:35}
+];
+const links=[[0,1],[0,2],[3,4],[7,6],[5,8],[9,0],[4,8],[7,5],[11,8],[10,4]] as const;
+const topology=world as any;
+const worldFeature=feature(topology,topology.objects.countries) as any;
+
+export default function CommandMap({compact=false}:{compact?:boolean}){
+ const[active,setActive]=useState<Layer[]>(['ransomware','malware','phishing','warfare','exploit']);
+ const[window,setWindow]=useState('24H');
+ const[pulse,setPulse]=useState(0);
+ const[selected,setSelected]=useState<EventPoint|null>(null);
+ useEffect(()=>{const id=setInterval(()=>setPulse(x=>(x+1)%1000),1200);return()=>clearInterval(id)},[]);
+ const projection=useMemo(()=>geoEqualEarth().fitExtent([[12,12],[988,488]],worldFeature),[]);
+ const path=useMemo(()=>geoPath(projection),[projection]);
+ const countries=useMemo(()=>worldFeature.features||[],[]);
+ const visible=useMemo(()=>events.filter(p=>active.includes(p.layer)),[active]);
+ const total=visible.reduce((a,b)=>a+b.count,0);
+ const ranked=[...visible].sort((a,b)=>b.count-a.count).slice(0,5);
+ function toggle(l:Layer){setActive(a=>a.includes(l)?a.filter(x=>x!==l):[...a,l])}
+ return <section className={`command-map threatmap ${compact?'compact':''}`}>
+   <div className="map-toolbar"><div><span className="live-dot"/> LIVE CYBER THREAT MAP <span className="demo-flag">PUBLIC INTEL + MODELED TELEMETRY</span></div><div className="time-control">{['1H','6H','24H','7D'].map(t=><button className={window===t?'active':''} onClick={()=>setWindow(t)} key={t}>{t}</button>)}</div></div>
+   {!compact&&<div className="layer-bar">{layers.map(l=><button key={l} className={active.includes(l)?'on':''} style={active.includes(l)?{borderColor:palette[l],color:palette[l]}:undefined} onClick={()=>toggle(l)}><i style={{background:palette[l]}}/>{l}</button>)}</div>}
+   <div className="map-stage threat-stage">
+     <svg viewBox="0 0 1000 500" aria-label="Geographic global cyber threat map">
+       <defs><filter id="streamGlow"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+       <rect width="1000" height="500" fill="#03070c"/>
+       <g>{countries.map((geo:any,i:number)=><path key={geo.id||i} d={path(geo)||''} className="real-country"/>)}</g>
+       {links.map(([a,b],i)=>{const s=events[a],t=events[b];if(!active.includes(s.layer)&&!active.includes(t.layer))return null;const p1=projection([s.lon,s.lat]);const p2=projection([t.lon,t.lat]);if(!p1||!p2)return null;const mx=(p1[0]+p2[0])/2,my=Math.min(p1[1],p2[1])-Math.max(18,Math.abs(p2[0]-p1[0])*.08);return <path key={i} className="live-stream" style={{stroke:palette[s.layer],animationDelay:`-${i*.7}s`}} d={`M${p1[0]} ${p1[1]} Q${mx} ${my} ${p2[0]} ${p2[1]}`}/>})}
+       {visible.map((p,i)=>{const xy=projection([p.lon,p.lat]);if(!xy)return null;const r=Math.min(7,3+p.count/65);return <g key={p.name+p.layer} transform={`translate(${xy[0]} ${xy[1]})`} onClick={()=>setSelected(p)} style={{cursor:'pointer'}} filter="url(#streamGlow)"><circle r={r+5+(pulse%2)} fill="none" stroke={palette[p.layer]} strokeOpacity=".28"/><circle r={r} fill={palette[p.layer]} stroke="#f4fbff" strokeWidth=".7"/><text x={r+5} y="-3" className="map-label">{p.name}</text><text x={r+5} y="8" className="map-sub">{p.layer.toUpperCase()} • {p.count}</text></g>})}
+     </svg>
+     <aside className="threat-total"><small>DETECTIONS / SIGNALS</small><strong>{total.toLocaleString()}</strong><span>selected window • {window}</span></aside>
+     <aside className="target-board"><small>TOP OBSERVED REGIONS</small>{ranked.map((p,i)=><div key={p.name}><b>{i+1}</b><span>{p.name}</span><strong>{p.count}</strong></div>)}</aside>
+     <div className="map-legend threat-legend">{active.slice(0,6).map(l=><span key={l}><i style={{background:palette[l]}}/>{l}</span>)}</div>
+     {selected&&<aside className="map-event-card"><button className="x" onClick={()=>setSelected(null)}>×</button><span className="eyebrow">LIVE MAP DOSSIER</span><h3>{selected.name}</h3><strong style={{color:palette[selected.layer]}}>{selected.count}</strong><p>{selected.layer.toUpperCase()} intelligence signals in the selected {window} view.</p><small>{selected.severity.toUpperCase()} confidence tier • visualization does not imply a confirmed attack in progress</small></aside>}
+   </div>
+ </section>
+}
