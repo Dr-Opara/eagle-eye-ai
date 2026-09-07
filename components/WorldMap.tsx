@@ -10,8 +10,7 @@ import styles from './WorldMap.module.css'
 type Coord={lat:number;lon:number;label:string}
 type Hotspot=Coord&{count:number;countryKey:string}
 
-type TopologyLike={objects:{countries:unknown}}
-const worldFeature=feature(world as unknown as TopologyLike,(world as unknown as TopologyLike).objects.countries) as any
+const worldFeature=feature(world as any,(world as any).objects.countries) as any
 
 const coords:Record<string,Coord>={
  US:{lat:38,lon:-97,label:'United States'},USA:{lat:38,lon:-97,label:'United States'},'UNITED STATES':{lat:38,lon:-97,label:'United States'},
