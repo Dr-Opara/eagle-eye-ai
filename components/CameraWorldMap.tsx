@@ -7,8 +7,7 @@ import world from 'world-atlas/countries-110m.json'
 import type {PublicCamera,CameraPayload} from '@/lib/cameras'
 import styles from './WorldMap.module.css'
 
-type TopologyLike={objects:{countries:unknown}}
-const worldFeature=feature(world as unknown as TopologyLike,(world as unknown as TopologyLike).objects.countries) as any
+const worldFeature=feature(world as any,(world as any).objects.countries) as any
 
 export function CameraWorldMap(){
   const [payload,setPayload]=useState<CameraPayload>({cameras:[],total:0,live:false,provider:'Windy Webcams',generatedAt:new Date().toISOString()})
